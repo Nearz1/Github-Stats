@@ -18,41 +18,39 @@ defaults:
 jobs:
   build:
     runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v6
 
-    - uses: mlugg/setup-zig@d1434d08867e3ee9daa34448df10607b98908d29  # v2 tag
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Setup Zig
+      uses: mlugg/setup-zig@v2
       with:
         version: 0.15.2
 
     - name: Build
-      run: |
-        zig build --release
+      run: zig build --release
 
     - name: Checkout history branch
       run: |
-        git config --global user.name "jstrieb/github-stats"
-        git config --global user.email "github-stats[bot]@jstrieb.github.io"
-        # Push generated files to the generated branch
-        git pull
+        git config --global user.name "github-stats"
+        git config --global user.email "github-stats@users.noreply.github.com"
+        git fetch origin generated || true
         git checkout generated || git checkout -b generated
 
     - name: Generate images
       run: |
-        ./zig-out/bin/github-stats
+        ./zig-out/bin/github-stats --access-token $ACCESS_TOKEN
       env:
         ACCESS_TOKEN: ${{ secrets.ACCESS_TOKEN }}
         EXCLUDE_REPOS: ${{ secrets.EXCLUDE_REPOS }}
         EXCLUDE_LANGS: ${{ secrets.EXCLUDE_LANGS }}
         EXCLUDE_PRIVATE: "false"
         DEBUG: "false"
-        # TODO: Remove this when they get their API working again
-        # https://github.com/orgs/community/discussions/192970
         MAX_RETRIES: 5
 
-    - name: Commit to the repo
+    - name: Commit and push
       run: |
         git add .
-        # Force the build to succeed, even if no files were changed
-        git commit -m 'Update generated files' || true
-        git push --set-upstream origin generated
+        git commit -m "Update generated files" || true
+        git push origin generated
